@@ -1,0 +1,28 @@
+node_modules/
+dist/
+build/
+coverage/
+
+# env
+.env
+.env.*
+!.env.example
+
+# logs
+*.log
+npm-debug.log*
+logs/
+
+# editor / os
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# misc
+.cache/
+tmp/
+
+# catatan lokal, tidak untuk dipublish
+docs/deploy-railway.md

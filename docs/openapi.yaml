@@ -1,0 +1,238 @@
+openapi: 3.0.3
+info:
+  title: Task Management API
+  version: 1.0.0
+  description: >
+    REST API untuk aplikasi Task Management System. Autentikasi memakai access token
+    (dikirim lewat header Authorization) dan refresh token yang disimpan di cookie httpOnly.
+servers:
+  - url: http://localhost:4000
+tags:
+  - name: Auth
+  - name: Tasks
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        message: { type: string }
+        code: { type: string }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+    AuthResponse:
+      type: object
+      properties:
+        user: { $ref: '#/components/schemas/User' }
+        accessToken: { type: string }
+    Task:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        status: { type: string, enum: [pending, in-progress, done] }
+        deadline: { type: string, format: date, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    TaskInput:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, maxLength: 255 }
+        description: { type: string, nullable: true }
+        status: { type: string, enum: [pending, in-progress, done] }
+        deadline: { type: string, format: date, nullable: true }
+    TaskList:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Task' }
+        meta:
+          type: object
+          properties:
+            page: { type: integer }
+            limit: { type: integer }
+            total: { type: integer }
+            totalPages: { type: integer }
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200': { description: OK }
+        '503': { description: Database tidak tersedia }
+
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: Registrasi user baru
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+                password: { type: string, description: 'min 8 karakter, ada huruf & angka' }
+      responses:
+        '201':
+          description: Berhasil
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '409': { description: Email sudah terdaftar }
+        '422': { description: Validasi gagal }
+
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200':
+          description: Berhasil
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '401': { description: Email atau password salah }
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Tukar refresh token (cookie) dengan access token baru
+      responses:
+        '200':
+          description: Token baru
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '401': { description: Refresh token tidak valid / kadaluarsa }
+
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout, mencabut refresh token
+      responses:
+        '204': { description: Berhasil }
+
+  /api/v1/auth/me:
+    get:
+      tags: [Auth]
+      summary: Profil user yang sedang login
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: '#/components/schemas/User' }
+        '401': { description: Tidak terautentikasi }
+
+  /api/v1/tasks:
+    get:
+      tags: [Tasks]
+      summary: Daftar tugas milik user
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: query, name: status, schema: { type: string, enum: [pending, in-progress, done] } }
+        - { in: query, name: search, schema: { type: string } }
+        - { in: query, name: page, schema: { type: integer, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, default: 10, maximum: 50 } }
+        - { in: query, name: sort, schema: { type: string, enum: [createdAt, deadline, title], default: createdAt } }
+        - { in: query, name: order, schema: { type: string, enum: [asc, desc], default: desc } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskList' }
+        '401': { description: Tidak terautentikasi }
+    post:
+      tags: [Tasks]
+      summary: Buat tugas baru
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TaskInput' }
+      responses:
+        '201':
+          description: Dibuat
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  task: { $ref: '#/components/schemas/Task' }
+        '422': { description: Validasi gagal }
+
+  /api/v1/tasks/{id}:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Tasks]
+      summary: Detail tugas
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  task: { $ref: '#/components/schemas/Task' }
+        '404': { description: Tugas tidak ditemukan }
+    put:
+      tags: [Tasks]
+      summary: Update tugas (partial)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TaskInput' }
+      responses:
+        '200': { description: OK }
+        '404': { description: Tugas tidak ditemukan }
+        '422': { description: Validasi gagal }
+    delete:
+      tags: [Tasks]
+      summary: Hapus tugas
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Terhapus }
+        '404': { description: Tugas tidak ditemukan }

@@ -1,0 +1,8 @@
+# Dibaca Railway kalau Root Directory service ini diset ke "frontend".
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
