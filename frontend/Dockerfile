@@ -16,4 +16,5 @@ COPY --from=build /app/dist /usr/share/nginx/html
 # variabel env (mis. BACKEND_UPSTREAM) ke /etc/nginx/conf.d/default.conf saat start
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 ENV BACKEND_UPSTREAM=backend:4000
+ENV PORT=80
 EXPOSE 80

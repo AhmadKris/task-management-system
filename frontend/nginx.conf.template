@@ -1,5 +1,7 @@
 server {
-  listen 80;
+  # Railway (dan platform sejenis) nentuin port lewat env PORT saat container
+  # jalan, bukan selalu 80 - makanya file ini template, bukan conf statis.
+  listen ${PORT};
   server_name _;
   root /usr/share/nginx/html;
   index index.html;
