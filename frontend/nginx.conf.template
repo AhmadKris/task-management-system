@@ -1,0 +1,32 @@
+server {
+  listen 80;
+  server_name _;
+  root /usr/share/nginx/html;
+  index index.html;
+
+  # resolver docker + proxy_pass lewat variable: DNS di-resolve per-request,
+  # bukan sekali di startup. Kalau BACKEND_UPSTREAM belum ada/host mati,
+  # nginx tetap nyala dan cuma balikin 502 di /api, bukan crash total.
+  resolver 127.0.0.11 valid=10s;
+  set $backend_upstream "http://${BACKEND_UPSTREAM}";
+
+  # SPA: semua route yang bukan file jatuh ke index.html
+  location / {
+    try_files $uri $uri/ /index.html;
+  }
+
+  # teruskan panggilan API ke service backend. Cuma dipakai kalau frontend
+  # diakses lewat proxy ini (mis. docker-compose); kalau VITE_API_URL diisi
+  # URL penuh saat build (deploy terpisah), path ini tidak kepakai sama sekali.
+  location /api/ {
+    proxy_pass $backend_upstream;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
+  location = /health {
+    proxy_pass $backend_upstream/health;
+  }
+}

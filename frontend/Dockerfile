@@ -8,5 +8,8 @@ RUN npm run build
 
 FROM nginx:1.27-alpine
 COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# template, bukan conf langsung: entrypoint image nginx nge-envsubst
+# variabel env (mis. BACKEND_UPSTREAM) ke /etc/nginx/conf.d/default.conf saat start
+COPY nginx.conf.template /etc/nginx/templates/default.conf.template
+ENV BACKEND_UPSTREAM=backend:4000
 EXPOSE 80
